@@ -395,18 +395,19 @@
             }
         }
     </style>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
 </head>
 <body>
     <div class="main-wrapper">
-        <!-- Left Ad Space -->
-        <aside class="ad-space">
-            <div class="ad-placeholder">
-                Future Ad Space<br>
-                200x600
-            </div>
-        </aside>
-
-        <!-- Main Content -->
+        <!-- Main Content (광고 공간 삭제로 더 넓어짐) -->
         <main class="container">
             <div style="text-align: center; color: #999; font-size: 0.75rem; margin-top: 10px; margin-bottom: -20px;">
                 Est. 2025.08.22
@@ -604,6 +605,14 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Google Analytics 이벤트 추적
+                    if (typeof gtag !== 'undefined') {
+                        gtag('event', 'prediction_submitted', {
+                            'predicted_year': year,
+                            'total_predictions': data.stats.total
+                        });
+                    }
+                    
                     // Update local state with server data
                     predictions = [];
                     if (data.stats.distribution) {
@@ -981,33 +990,51 @@
 
         // Social sharing functions
         function shareX() {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'share', { 'platform': 'X' });
+            }
             const text = `I just predicted when AGI will arrive! Join the collective intelligence experiment at howlonguntilagi.com`;
             const url = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`;
             window.open(url, '_blank');
         }
 
         function shareFacebook() {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'share', { 'platform': 'Facebook' });
+            }
             const url = 'https://howlonguntilagi.com';
             window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
         }
 
         function shareLinkedIn() {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'share', { 'platform': 'LinkedIn' });
+            }
             const url = 'https://howlonguntilagi.com';
             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
         }
 
         function shareReddit() {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'share', { 'platform': 'Reddit' });
+            }
             const url = 'https://howlonguntilagi.com';
             const title = 'Predicting AGI arrival using the wisdom of crowds';
             window.open(`https://reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`, '_blank');
         }
 
         function shareWhatsApp() {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'share', { 'platform': 'WhatsApp' });
+            }
             const text = 'Check out this collective intelligence experiment predicting when AGI will arrive: https://howlonguntilagi.com';
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
 
         function shareTelegram() {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'share', { 'platform': 'Telegram' });
+            }
             const url = 'https://howlonguntilagi.com';
             const text = 'Predicting AGI arrival using collective intelligence';
             window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
