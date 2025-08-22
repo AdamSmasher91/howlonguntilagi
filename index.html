@@ -361,6 +361,23 @@
             display: block;
         }
 
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
@@ -562,40 +579,77 @@
                 return;
             }
             
-            // Add prediction
+            // Add loading state
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = 'Submitting... <span class="loading"></span>';
+            btn.disabled = true;
+            
+            // Submit prediction
             submitPrediction(year);
         });
 
-        function submitPrediction(year) {
-            // Add to predictions
-            predictions.push(year);
-            
-            // Add to timeline data
-            const today = new Date().toISOString().split('T')[0];
-            predictionsByDate.push({
-                date: today,
-                year: year,
-                averageToDate: calculateMean()
-            });
-            
-            // Mark as voted
-            hasVoted = true;
-            localStorage.setItem('agi_prediction_voted', 'true');
-            localStorage.setItem('agi_prediction_year', year);
-            
-            // Update UI
-            updateStatistics();
-            updateHistogram();
-            updateTimeline();
-            disableForm();
-            
-            // Show success message
-            showMessage(`Thank you! Your prediction of ${year} has been recorded.`, 'success');
-            
-            // Animate button
-            const btn = document.getElementById('submitBtn');
-            btn.classList.add('success');
-            btn.textContent = '✓ Prediction Submitted';
+        async function submitPrediction(year) {
+            try {
+                const response = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        year: year,
+                        humanCheck: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update local state with server data
+                    predictions = [];
+                    if (data.stats.distribution) {
+                        Object.keys(data.stats.distribution).forEach(y => {
+                            const count = data.stats.distribution[y];
+                            for (let i = 0; i < count; i++) {
+                                predictions.push(parseInt(y));
+                            }
+                        });
+                    }
+                    
+                    // Update stats display
+                    document.getElementById('totalPredictions').textContent = data.stats.total;
+                    document.getElementById('meanYear').textContent = data.stats.mean;
+                    document.getElementById('medianYear').textContent = data.stats.median;
+                    document.getElementById('modeYear').textContent = data.stats.mode;
+                    
+                    // Update visualizations
+                    updateHistogram();
+                    updateTimeline();
+                    
+                    // Mark as voted
+                    hasVoted = true;
+                    localStorage.setItem('agi_prediction_voted', 'true');
+                    localStorage.setItem('agi_prediction_year', year);
+                    
+                    // Update UI
+                    disableForm();
+                    showMessage(`Thank you! Your prediction of ${year} has been recorded.`, 'success');
+                    
+                    const btn = document.getElementById('submitBtn');
+                    btn.classList.add('success');
+                    btn.innerHTML = '✓ Prediction Submitted';
+                } else {
+                    showMessage(data.error || 'Failed to submit prediction.', 'error');
+                    const btn = document.getElementById('submitBtn');
+                    btn.innerHTML = 'Submit My Prediction';
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Network error. Please try again.', 'error');
+                const btn = document.getElementById('submitBtn');
+                btn.innerHTML = 'Submit My Prediction';
+                btn.disabled = false;
+            }
         }
 
         function disableForm() {
@@ -720,7 +774,7 @@
         function updateTimeline() {
             const timelineContent = document.getElementById('timeline-content');
             
-            if (predictionsByDate.length === 0) {
+            if (predictions.length === 0) {
                 timelineContent.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Timeline will appear after first prediction</p>';
                 return;
             }
@@ -787,6 +841,53 @@
             document.getElementById('timeline-content').innerHTML = tableHTML;
         }
 
+        // Load initial stats from server
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                
+                // Check if response is OK and is JSON
+                if (!response.ok) {
+                    console.log('Stats API not available yet');
+                    return;
+                }
+                
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    console.log('Stats API not returning JSON yet');
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.stats && data.stats.total > 0) {
+                    // Update statistics display
+                    document.getElementById('totalPredictions').textContent = data.stats.total;
+                    document.getElementById('meanYear').textContent = data.stats.mean || '—';
+                    document.getElementById('medianYear').textContent = data.stats.median || '—';
+                    document.getElementById('modeYear').textContent = data.stats.mode || '—';
+                    
+                    // Rebuild predictions array from distribution
+                    predictions = [];
+                    if (data.stats.distribution) {
+                        Object.keys(data.stats.distribution).forEach(y => {
+                            const count = data.stats.distribution[y];
+                            for (let i = 0; i < count; i++) {
+                                predictions.push(parseInt(y));
+                            }
+                        });
+                    }
+                    
+                    // Update visualizations
+                    updateHistogram();
+                    updateTimeline();
+                }
+            } catch (error) {
+                // Silently fail - API not ready yet
+                console.log('Stats loading skipped - API not ready');
+            }
+        }
+
         // Social sharing functions
         function shareX() {
             const text = `I just predicted when AGI will arrive! Join the collective intelligence experiment at howlonguntilagi.com`;
@@ -824,9 +925,7 @@
         // Initialize
         populateYearDropdown();
         checkVoteStatus();
-        updateStatistics();
-        updateHistogram();
-        updateTimeline();
+        loadStats();
     </script>
 </body>
 </html>
